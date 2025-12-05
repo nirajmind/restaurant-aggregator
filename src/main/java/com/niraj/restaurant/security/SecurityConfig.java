@@ -26,7 +26,13 @@ public class SecurityConfig {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**", "/swagger-ui/**", "/v3/api-docs/**", "/actuator/**").permitAll()
+                        .requestMatchers(
+                                "/auth/**",
+                                "/v3/api-docs",       // The exact JSON path
+                                "/v3/api-docs/**",    // Sub-paths
+                                "/swagger-ui/**",     // UI Resources
+                                "/swagger-ui.html",   // Redirect
+                                "/actuator/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))

@@ -1,5 +1,6 @@
 package com.niraj.restaurant.ingestion;
 
+import com.niraj.restaurant.domain.City;
 import com.niraj.restaurant.domain.Restaurant;
 import com.niraj.restaurant.domain.RestaurantSourceMap;
 import com.niraj.restaurant.domain.Source;
@@ -9,23 +10,58 @@ import com.niraj.restaurant.repository.CityRepository;
 import com.niraj.restaurant.repository.RestaurantRepository;
 import com.niraj.restaurant.repository.RestaurantSourceMapRepository;
 import com.niraj.restaurant.repository.SourceRepository;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 
 @Service
+@Slf4j
 public class IngestionService {
     private final SourceRepository sourceRepo;
     private final RestaurantRepository restaurantRepo;
     private final RestaurantSourceMapRepository mapRepo;
     private final CityRepository cityRepo;
     private final DedupService dedup;
+    // Inject the adapter (This is the bean with @CircuitBreaker)
+    private final SourceAdapter sourceAdapter;
 
     public IngestionService(SourceRepository sourceRepo, RestaurantRepository restaurantRepo,
-                            RestaurantSourceMapRepository mapRepo, CityRepository cityRepo, DedupService dedup) {
+                            RestaurantSourceMapRepository mapRepo, CityRepository cityRepo, DedupService dedup, SourceAdapter sourceAdapter) {
         this.sourceRepo = sourceRepo; this.restaurantRepo = restaurantRepo; this.mapRepo = mapRepo; this.cityRepo = cityRepo; this.dedup = dedup;
+        this.sourceAdapter = sourceAdapter;
+    }
+
+    // --- 1. THE MISSING ASYNC SYNC METHOD ---
+    @Async("taskExecutor")
+    public CompletableFuture<String> triggerSync() {
+        log.info("ASYNC START: Sync job started on thread: {}", Thread.currentThread().getName());
+
+        try {
+            // We fetch a dummy city for this test to trigger the adapter
+            City dubai = cityRepo.findAll().stream().findFirst().orElse(null);
+
+            if (dubai == null) {
+                log.warn("No cities found to sync.");
+                return CompletableFuture.completedFuture("No Cities");
+            }
+
+            // CALL THE CIRCUIT BREAKER PROTECTED METHOD
+            var restaurants = sourceAdapter.fetchRestaurants(dubai);
+
+            long count = restaurants.count();
+            log.info("ASYNC COMPLETE: Fetched {} items from {}", count, sourceAdapter.name());
+
+            return CompletableFuture.completedFuture("Sync Success");
+
+        } catch (Exception e) {
+            log.error("ASYNC ERROR: Sync failed due to: {}", e.getMessage());
+            return CompletableFuture.completedFuture("Sync Failed");
+        }
     }
 
     @Transactional
@@ -33,7 +69,8 @@ public class IngestionService {
         Source s = sourceRepo.findByName(sourceName).orElseGet(() -> {
             Source ns = new Source(); ns.setName(sourceName); ns.setEnabled(true); return sourceRepo.save(ns);
         });
-        int created = 0, updated = 0;
+        int created = 0;
+        int updated = 0;
         for (ExternalRestaurantDto ext : batch) {
             Optional<RestaurantSourceMap> existingMap = mapRepo.findBySourceIdAndExternalId(s.getId(), ext.externalId());
             Restaurant canonical = existingMap.map(RestaurantSourceMap::getRestaurant).orElseGet(() -> dedup.findMatchOrCreate(ext));
@@ -62,6 +99,5 @@ public class IngestionService {
                 .ifPresentOrElse(m -> { m.setExternalSlug(ext.slug()); m.setRawHash(ext.hash()); },
                         () -> mapRepo.save(new RestaurantSourceMap(r, s, ext.externalId(), ext.slug(), ext.hash())));
     }
-
 }
 

@@ -1,0 +1,39 @@
+sequenceDiagram
+    autonumber
+    actor Admin as 👨‍💻 Admin/Cron
+    participant Ctrl as 🎮 IngestionController
+    participant Svc as ⚙️ IngestionService (Async)
+    participant CB as ⚡ Circuit Breaker Proxy
+    participant Adapter as 🔌 SourceAdapter (Mock/Uber)
+    participant Dedup as 🔍 DedupService
+    participant Repo as 🗄️ Repositories (DB)
+
+    Note over Admin, Ctrl: Phase 1: Trigger (Non-Blocking)
+    Admin->>Ctrl: POST /sync
+    Ctrl->>Svc: triggerSync() (Fire & Forget)
+    Svc-->>Ctrl: Future<String>
+    Ctrl-->>Admin: 202 Accepted "Sync Started"
+
+    Note over Svc, Adapter: Phase 2: Fetching (Resilient)
+    rect rgb(240, 248, 255)
+        Note right of Svc: Running on "RestAsync-1" Thread
+        Svc->>CB: fetchRestaurants(City)
+        alt Circuit is CLOSED (Normal)
+            CB->>Adapter: fetchRestaurants()
+            Adapter-->>CB: Stream<Dto>
+        else Circuit is OPEN (Failure)
+            CB-->>Svc: Fallback (Empty List)
+        end
+    end
+
+    Note over Svc, Repo: Phase 3: Processing (Transactional)
+    loop For Each Restaurant Dto
+        Svc->>Dedup: findMatchOrCreate(Dto)
+        Dedup->>Repo: Check DB (Name + Address)
+        Dedup-->>Svc: Restaurant Entity (New or Existing)
+
+        Svc->>Svc: Update Fields (Price, Rating)
+        Svc->>Repo: save(Restaurant)
+    end
+
+    Svc->>Svc: Log Success/Failure

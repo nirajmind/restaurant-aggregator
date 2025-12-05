@@ -1,0 +1,58 @@
+--- Maven ---
+
+target/
+*.jar
+*.war
+*.ear
+.mvn/wrapper/maven-wrapper.jar
+!/src/main//target/
+!/src/test//target/
+
+--- IntelliJ IDEA ---
+
+.idea/
+*.iws
+*.iml
+*.ipr
+
+--- Eclipse / STS ---
+
+.classpath
+.project
+.settings/
+.springBeans
+.sts4-cache
+bin/
+
+--- VS Code ---
+
+.vscode/
+
+--- NetBeans ---
+
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+
+--- OS Specific ---
+
+.DS_Store
+Thumbs.db
+
+--- Docker & Local Data (CRITICAL) ---
+
+Ignore the persistent database volume folder
+
+postgres_data/
+
+Ignore log files
+
+logs/
+*.log
+
+Ignore environment variable files containing secrets
+
+.env

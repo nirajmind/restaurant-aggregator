@@ -1,0 +1,45 @@
+sequenceDiagram
+    autonumber
+    actor User as 👤 User (Postman)
+    participant Nginx as 🌐 Nginx (Port 80)
+    participant Auth as 🛡️ Security Filter (JwtAuthFilter)
+    participant Ctrl as ⚙️ Controllers
+    participant DB as 🗄️ PostgreSQL
+
+    note over User, DB: Phase 1: Registration & Login
+
+    User->>Nginx: POST /auth/register (niraj, 123456)
+    Nginx->>Ctrl: Forward Request
+    Ctrl->>DB: Check if User exists?
+    DB-->>Ctrl: No
+    Ctrl->>DB: INSERT User (Role = ROLE_USER)
+    DB-->>Ctrl: Success
+    Ctrl-->>User: 200 OK "User registered"
+
+    User->>Nginx: POST /auth/login (niraj, 123456)
+    Nginx->>Ctrl: Forward Request
+    Ctrl->>DB: Verify Credentials
+    DB-->>Ctrl: Valid
+    Ctrl->>Ctrl: Generate JWT (HS256)
+    Ctrl-->>User: 200 OK { "token": "eyJhbG..." }
+
+    note over User, DB: Phase 2: Accessing Protected Data
+
+    User->>Nginx: GET /api/v1/restaurants
+    Note right of User: Header: Authorization: Bearer eyJhbG...
+
+    Nginx->>Auth: Forward Request
+
+    rect rgb(240, 248, 255)
+        note right of Auth: 🔒 Security Check
+        Auth->>Auth: Extract Token
+        Auth->>Auth: Validate Signature (Secret Key)
+        Auth->>DB: Fetch User & Roles
+        DB-->>Auth: User Found [ROLE_USER]
+        Auth->>Auth: Set SecurityContext
+    end
+
+    Auth->>Ctrl: Forward to RestaurantController
+    Ctrl->>DB: SELECT * FROM restaurants
+    DB-->>Ctrl: Return List[]
+    Ctrl-->>User: 200 OK (JSON Data)

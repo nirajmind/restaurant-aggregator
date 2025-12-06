@@ -5,8 +5,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.math.BigInteger;
-
 @Entity @Table(name = "restaurant_source_map",
         uniqueConstraints = @UniqueConstraint(columnNames = {"source_id","external_id"}))
 @Getter

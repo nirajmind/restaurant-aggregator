@@ -75,3 +75,14 @@ docker-compose up -d --build --force-recreate --scale app=3
       * **5 seconds later**, you will see the log: `COMPLETED: Email sent...`.
       * The Thread Name in the log will be `RestAsync-1` (not `http-nio-8080-exec-1`).
       **This proves you are handling tasks in parallel, maximizing the throughput of your HTTP threads.**
+
+
+| Concept        | Your Implementation                 | Buzzword to Drop             |
+| -------------- | ----------------------------------- | ---------------------------- |
+| Handling Load  | Nginx + 3 Replicas + Stateless JWT  | Horizontal Scaling           |
+| Slow Tasks     | @Async + Thread Pool Config         | Non-blocking I/O             |
+| Failures       | Resilience4j Circuit Breaker        | Fault Tolerance              |
+| Data Quality   | DedupService + SourceMap            | Data Normalization           |
+| Security       | RBAC (ROLE_USER vs ROLE_ADMIN)      | Principle of Least Privilege |
+| DB Performance | Entity Indexes + Connection Pooling | Query Optimization           |
+

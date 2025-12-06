@@ -1,0 +1,93 @@
+classDiagram
+    direction TB
+
+%% --- USER MANAGEMENT ---
+    class User {
+        +Long id
+        +String username
+        +String password
+        +Set~Role~ roles
+    }
+    class Role {
+        +Integer id
+        +ERole name
+    }
+
+%% Many-to-Many: Users have multiple roles, Roles are shared by users
+    User "*" --> "*" Role : @ManyToMany
+
+%% --- CORE RESTAURANT DOMAIN ---
+    class City {
+        +Long id
+        +String name
+        +String country
+        +String tz
+    }
+
+    class Restaurant {
+        +Long id
+        +String name
+        +String address
+        +Double latitude
+        +Double longitude
+        +Boolean isActive
+        +City city
+        +Set~Cuisine~ cuisines
+        +Set~Tag~ tags
+        +List~MenuItem~ menuItems
+    }
+
+    class Cuisine {
+        +Long id
+        +String name
+    }
+
+    class Tag {
+        +Long id
+        +String name
+    }
+
+    class MenuItem {
+        +Long id
+        +String name
+        +BigDecimal price
+        +Boolean isAvailable
+        +Long version
+    }
+
+%% Relationships
+    City "1" --> "*" Restaurant : @OneToMany / @ManyToOne
+    Restaurant "*" --> "*" Cuisine : @ManyToMany
+    Restaurant "*" --> "*" Tag : @ManyToMany
+    Restaurant "1" *-- "*" MenuItem : @OneToMany (Composition)
+
+%% --- ORDER MANAGEMENT ---
+    class Order {
+        +Long id
+        +BigDecimal totalAmount
+        +OrderStatus status
+        +LocalDateTime createdAt
+    }
+
+%% Users place orders, Restaurants receive them
+    User "1" --> "*" Order : @OneToMany
+    Restaurant "1" --> "*" Order : @OneToMany
+
+%% --- DATA INGESTION ---
+    class Source {
+        +Long id
+        +String name
+        +Boolean enabled
+    }
+
+    class RestaurantSourceMap {
+        +Long id
+        +String externalId
+        +String externalSlug
+        +String rawHash
+    }
+
+%% A source (UberEats) has many mappings
+    Source "1" --> "*" RestaurantSourceMap : @OneToMany
+%% A canonical Restaurant can have multiple external mappings (Uber, DoorDash)
+    Restaurant "1" --> "*" RestaurantSourceMap : @OneToMany

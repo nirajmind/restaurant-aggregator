@@ -1,88 +1,103 @@
-# Restaurant Aggregator
+# **🚀 High-Performance Restaurant Aggregator**
 
+A production-grade, horizontally scalable backend system designed for high-volume food delivery platforms. Built with **Spring Boot 3**, **Docker**, and **Nginx**.
 
-restaurant-aggregator/
-├─ aggregator-app/
-│  ├─ pom.xml
-│  ├─ src/main/java/com/mercor/restaurant/
-│  │  ├─ RestaurantAggregatorApplication.java
-│  │  ├─ config/
-│  │  │  └─ OpenApiConfig.java
-│  │  ├─ domain/
-│  │  │  ├─ City.java
-│  │  │  ├─ Cuisine.java
-│  │  │  ├─ MenuItem.java
-│  │  │  ├─ Review.java
-│  │  │  ├─ Source.java
-│  │  │  ├─ Tag.java
-│  │  │  ├─ Restaurant.java
-│  │  │  └─ RestaurantSourceMap.java
-│  │  ├─ repository/
-│  │  │  ├─ CityRepository.java
-│  │  │  ├─ CuisineRepository.java
-│  │  │  ├─ MenuItemRepository.java
-│  │  │  ├─ ReviewRepository.java
-│  │  │  ├─ SourceRepository.java
-│  │  │  ├─ TagRepository.java
-│  │  │  ├─ RestaurantRepository.java
-│  │  │  └─ RestaurantSourceMapRepository.java
-│  │  ├─ dto/
-│  │  │  ├─ RestaurantResponse.java
-│  │  │  ├─ RestaurantSearchRequest.java
-│  │  │  ├─ ExternalRestaurantDto.java
-│  │  │  └─ UpsertResult.java
-│  │  ├─ service/
-│  │  │  ├─ RestaurantService.java
-│  │  │  ├─ RestaurantSpecs.java
-│  │  │  ├─ IngestionService.java
-│  │  │  └─ DedupService.java
-│  │  ├─ web/
-│  │  │  ├─ RestaurantController.java
-│  │  │  ├─ IngestionController.java
-│  │  │  └─ GlobalExceptionHandler.java
-│  │  └─ mapper/
-│  │     └─ RestaurantMapper.java
-│  ├─ src/main/resources/
-│  │  ├─ application.yml
-│  │  └─ db/migration/V1__init.sql
-├─ docker/
-│  ├─ Dockerfile
-│  └─ docker-compose.yaml
-└─ README.md
+## **🏗️ System Architecture**
 
-## Run locally
-- Start Postgres: docker compose -f docker/docker-compose.yaml up -d db
-- Build: (from aggregator-app) mvn clean package
-- Run: mvn spring-boot:run
+This project demonstrates a **Hexagonal Architecture** focusing on resilience, security, and low latency.
 
-## Test API
-- GET http://localhost:8080/api/v1/restaurants?page=0&size=10
-- POST http://localhost
+graph TD  
+User\[Client / Postman\] \--\>|Port 80| Nginx\[🌐 Nginx Load Balancer\]  
+Nginx \--\>|Round Robin| App1\[🚀 App Replica 1\]  
+Nginx \--\>|Round Robin| App2\[🚀 App Replica 2\]  
+Nginx \--\>|Round Robin| App3\[🚀 App Replica 3\]
 
-## To prove "Horizontal Scaling" in an interview, we will run 3 instances of your Spring Boot app and put Nginx in front of them to distribute traffic.
+    subgraph Cluster \[Docker Network\]  
+        App1 & App2 & App3 \--\>|Read/Write| DB\[(🗄️ Postgres)\]  
+        App1 & App2 & App3 \--\>|Cache| Redis\[(🔴 Redis)\]  
+    end
 
-docker-compose up -d --build --scale app=3
-docker-compose up -d --build --force-recreate --scale app=3
-1. **Verify Scaling:**
-* Watch the logs: `docker-compose logs -f app`
-* Make 5 requests to `http://localhost:80/api/public/ping` (or any endpoint).
-* You will see logs scrolling from **3 different container IDs**.
-* How to Verify (The "Impact" Moment)
-  1.  **Rebuild & Run:** `mvn clean package -DskipTests` -> `docker-compose up -d --build`.
-  2.  **Trigger:** Place an order via Postman/Curl.
-  3.  **Watch Logs:**
-      * You will see the HTTP Response come back instantly (e.g., in 100ms).
-      * **5 seconds later**, you will see the log: `COMPLETED: Email sent...`.
-      * The Thread Name in the log will be `RestAsync-1` (not `http-nio-8080-exec-1`).
-      **This proves you are handling tasks in parallel, maximizing the throughput of your HTTP threads.**
+### **Key Engineering Concepts Implemented**
 
+| Concept | Implementation Details | Architecture Goal |
+| :---- | :---- | :---- |
+| **Horizontal Scaling** | Nginx Load Balancer \+ 3 Spring Boot Replicas | Handling High Concurrency |
+| **Security** | Stateless JWT \+ RBAC (Role-Based Access Control) | Zero-Trust / Scalable Auth |
+| **Fault Tolerance** | Resilience4j Circuit Breaker on External APIs | Preventing Cascade Failures |
+| **Performance** | Redis Caching (L2) \+ Async Thread Pools | Low Latency (\<50ms reads) |
+| **Data Integrity** | Deduplication Service \+ ACID Transactions | Idempotent Data Ingestion |
 
-| Concept        | Your Implementation                 | Buzzword to Drop             |
-| -------------- | ----------------------------------- | ---------------------------- |
-| Handling Load  | Nginx + 3 Replicas + Stateless JWT  | Horizontal Scaling           |
-| Slow Tasks     | @Async + Thread Pool Config         | Non-blocking I/O             |
-| Failures       | Resilience4j Circuit Breaker        | Fault Tolerance              |
-| Data Quality   | DedupService + SourceMap            | Data Normalization           |
-| Security       | RBAC (ROLE_USER vs ROLE_ADMIN)      | Principle of Least Privilege |
-| DB Performance | Entity Indexes + Connection Pooling | Query Optimization           |
+## **🛠️ Tech Stack**
 
+* **Core:** Java 17, Spring Boot 3.4
+* **Data:** PostgreSQL, Redis (Lettuce/Redisson)
+* **DevOps:** Docker, Docker Compose, Nginx
+* **Security:** Spring Security, JWT (JJwt)
+* **Testing:** JUnit 5, Mockito, Testcontainers
+
+## **🚀 Quick Start (The "Clean Slate" Protocol)**
+
+**Prerequisites:** Docker & Maven installed.
+
+### **1\. Build & Launch Cluster**
+
+Run this single command to clean old state, rebuild the JAR, and launch the 3-node cluster.
+
+\# Windows PowerShell  
+mvn clean package \-DskipTests; docker-compose down; cls; docker-compose up \-d \--build \--scale app=3
+
+### **2\. Verify Deployment**
+
+Check the logs to ensure all 3 replicas started and connected to Redis/Postgres.
+
+docker-compose logs \-f app
+
+## **🧪 Testing the API**
+
+**Base URL:** http://localhost (Managed by Nginx on Port 80\)
+
+### **1\. Authentication Flow**
+
+* **Register (Create User):**
+    * POST http://localhost/auth/register
+    * Body: {"username": "admin", "password": "password"}
+* **Login (Get Token):**
+    * POST http://localhost/auth/login
+    * Response: {"token": "eyJhbGci..."}
+    * *⚠️ Copy this token for subsequent requests.*
+
+### **2\. High-Performance Read (Redis Cache)**
+
+* **Get Restaurants:**
+    * GET http://localhost/api/v1/restaurants/1
+    * Header: Authorization: Bearer \<TOKEN\>
+* **Observe:** First request takes \~50ms (DB Hit). Second request takes \~5ms (Redis Hit).
+
+### **3\. Resilient Ingestion (Circuit Breaker)**
+
+* **Trigger Sync:**
+    * POST http://localhost/api/v1/ingestion/sync
+* **Observe Logs:** You will see "ASYNC START" immediately (Non-blocking), followed by "ATTEMPT" or "FALLBACK" logs from the background thread pool.
+
+## **📂 Project Structure**
+
+restaurant-aggregator/  
+├─ docker/  
+│  ├─ docker-compose.yaml  \# Infrastructure Definition  
+│  ├─ nginx.conf           \# Load Balancer Config  
+│  └─ Dockerfile           \# Multi-stage Java Build  
+├─ src/main/java/com/niraj/restaurant/  
+│  ├─ config/              \# Async, OpenApi, Security Configs  
+│  ├─ domain/              \# JPA Entities (Rich Domain Model)  
+│  ├─ ingestion/           \# Hexagonal Ports & Adapters (Circuit Breakers)  
+│  ├─ repository/          \# Spring Data JPA Repositories  
+│  ├─ security/            \# JWT Filters & UserDetails  
+│  ├─ service/             \# Business Logic (@Transactional)  
+│  └─ web/                 \# REST Controllers  
+└─ pom.xml                 \# Dependencies
+
+## **👨‍💻 Maintainer Notes (Interview Cheat Sheet)**
+
+* **Why Stateless JWT?** To allow round-robin load balancing without sticky sessions.
+* **Why Async Ingestion?** To prevent HTTP thread starvation during long-running 3rd party API calls.
+* **Why DTOs?** To decouple the internal Database Schema (User) from the external API Contract (LoginRequest).

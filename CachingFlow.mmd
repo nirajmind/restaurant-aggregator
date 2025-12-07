@@ -1,0 +1,45 @@
+sequenceDiagram
+    autonumber
+    actor User as 👤 User (Postman)
+    participant Nginx as 🌐 Nginx (Load Balancer)
+    participant App as 🚀 Spring Boot (Service Layer)
+    participant Redis as 🔴 Redis (Cache)
+    participant DB as 🗄️ PostgreSQL (Database)
+
+    Note over User, DB: Scenario 1: The "Cold" Request (Cache Miss)
+
+    User->>Nginx: GET /api/v1/restaurants/1
+    Note right of User: Header: Authorization Bearer ...
+    Nginx->>App: Forward Request
+
+    rect rgb(240, 248, 255)
+        Note right of App: 🔒 Security Check (Stateless)
+        App->>App: Validate JWT Signature
+    end
+
+    Note right of App: @Cacheable("restaurants") triggered
+    App->>Redis: GET "restaurants::1"
+    Redis-->>App: (nil) / Miss ❌
+
+    Note right of App: Cache Miss -> Query Database
+    App->>DB: SELECT * FROM restaurants WHERE id=1
+    DB-->>App: Restaurant Entity
+
+    Note right of App: Serialize & Save to Cache
+    App->>Redis: SET "restaurants::1" (Binary Data)
+
+    App-->>User: 200 OK (Response Time: ~50ms)
+
+%% ---------------------------------------------------------
+
+    Note over User, DB: Scenario 2: The "Hot" Request (Cache Hit)
+
+    User->>Nginx: GET /api/v1/restaurants/1
+    Nginx->>App: Forward Request
+
+    Note right of App: @Cacheable check
+    App->>Redis: GET "restaurants::1"
+    Redis-->>App: Found Data ✅
+
+    Note right of App: Database is SKIPPED completely
+    App-->>User: 200 OK (Response Time: ~5ms)

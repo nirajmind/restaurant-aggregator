@@ -75,5 +75,6 @@ jwt:
 logging:
   level:
     org.springframework.cache: TRACE
+    org.springframework.boot.autoconfiguration: DEBUG
     # Optional: See Kafka logs
     # org.springframework.kafka: DEBUG

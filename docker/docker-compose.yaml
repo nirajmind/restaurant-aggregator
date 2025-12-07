@@ -18,23 +18,45 @@ services:
     ports:
       - "6379:6379"
 
+  # --- KAFKA INFRASTRUCTURE ---
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: restaurant_zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: restaurant_kafka
+    depends_on: [zookeeper]
+    ports:
+      # Expose 29092 for external tools (like checking topics from host)
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      # Listeners: Internal (kafka:9092) for App, External (localhost:29092) for Host
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
   app:
     build:
       context: ../
       dockerfile: docker/Dockerfile
-    depends_on: [db, redis]
+    depends_on: [db, redis, kafka] # Wait for Kafka
     environment:
-      # Use the service name 'db'
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/restaurant_db
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
-      # Random secret for JWT (In prod, use a vault)
-      JWT_SECRET: "7+ed8nuI+ffCxwloJoMV9RwLpUGdrPunjTrNthpWyMZ0zY6y1ZlJCVgZvvGQu3o05gq1yWHNXLaZ3dVa5ehuAA=="
       REDIS_HOST: redis
-    # Note: We REMOVED 'ports' here. 
-    # The apps are internal. Only Nginx is exposed.
+      # Point to the internal Docker service name
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: "7+ed8nuI+ffCxwloJoMV9RwLpUGdrPunjTrNthpWyMZ0zY6y1ZlJCVgZvvGQu3o05gq1yWHNXLaZ3dVa5ehuAA=="
     deploy:
-      replicas: 3  # <--- THIS IS HORIZONTAL SCALING
+      replicas: 3
 
   nginx:
     image: nginx:alpine
@@ -42,7 +64,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on: [app]
     ports:
-      - "80:80" # We access the app via localhost:80 (Nginx)
+      - "80:80"
 
 volumes:
   postgres_data:

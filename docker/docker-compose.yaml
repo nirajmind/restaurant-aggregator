@@ -30,6 +30,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: postgres
       # Random secret for JWT (In prod, use a vault)
       JWT_SECRET: "7+ed8nuI+ffCxwloJoMV9RwLpUGdrPunjTrNthpWyMZ0zY6y1ZlJCVgZvvGQu3o05gq1yWHNXLaZ3dVa5ehuAA=="
+      REDIS_HOST: redis
     # Note: We REMOVED 'ports' here. 
     # The apps are internal. Only Nginx is exposed.
     deploy:

@@ -10,6 +10,8 @@ import com.niraj.restaurant.repository.CityRepository;
 import com.niraj.restaurant.repository.RestaurantRepository;
 import com.niraj.restaurant.repository.RestaurantSourceMapRepository;
 import com.niraj.restaurant.repository.SourceRepository;
+import com.niraj.restaurant.service.IngestionProducer;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class IngestionService {
     private final SourceRepository sourceRepo;
     private final RestaurantRepository restaurantRepo;
@@ -29,12 +32,7 @@ public class IngestionService {
     private final DedupService dedup;
     // Inject the adapter (This is the bean with @CircuitBreaker)
     private final SourceAdapter sourceAdapter;
-
-    public IngestionService(SourceRepository sourceRepo, RestaurantRepository restaurantRepo,
-                            RestaurantSourceMapRepository mapRepo, CityRepository cityRepo, DedupService dedup, SourceAdapter sourceAdapter) {
-        this.sourceRepo = sourceRepo; this.restaurantRepo = restaurantRepo; this.mapRepo = mapRepo; this.cityRepo = cityRepo; this.dedup = dedup;
-        this.sourceAdapter = sourceAdapter;
-    }
+    private final IngestionProducer producer;
 
     // --- 1. THE MISSING ASYNC SYNC METHOD ---
     @Async("taskExecutor")
@@ -53,11 +51,12 @@ public class IngestionService {
             // CALL THE CIRCUIT BREAKER PROTECTED METHOD
             var restaurants = sourceAdapter.fetchRestaurants(dubai);
 
-            long count = restaurants.count();
-            log.info("ASYNC COMPLETE: Fetched {} items from {}", count, sourceAdapter.name());
-
-            return CompletableFuture.completedFuture("Sync Success");
-
+            // 2. Stream to Kafka (Producer)
+            // We iterate the stream and fire events.
+            // This is non-blocking IO for the application logic.
+            long count = restaurants.peek(producer::sendRestaurant).count();
+            log.info("SYNC COMPLETE: Pushed {} events to Kafka.", count);
+            return CompletableFuture.completedFuture("Pushed " + count);
         } catch (Exception e) {
             log.error("ASYNC ERROR: Sync failed due to: {}", e.getMessage());
             return CompletableFuture.completedFuture("Sync Failed");

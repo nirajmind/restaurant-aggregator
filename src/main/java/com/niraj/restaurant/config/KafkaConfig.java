@@ -36,7 +36,7 @@ public class KafkaConfig {
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JacksonJsonSerializer.class);
         // Safe default: allow all packages to be trusted for serialization
-        config.put(JacksonJsonSerializer.ADD_TYPE_INFO_HEADERS, false);
+        config.put(JacksonJsonSerializer.ADD_TYPE_INFO_HEADERS, true);
         return new DefaultKafkaProducerFactory<>(config);
     }
 
@@ -57,8 +57,7 @@ public class KafkaConfig {
         // Trust all packages (Simplifies DTO mapping)
         config.put(JacksonJsonDeserializer.TRUSTED_PACKAGES, "*");
 
-        return new DefaultKafkaConsumerFactory<>(config, new StringDeserializer(),
-                new JacksonJsonDeserializer<>(Object.class));
+        return new DefaultKafkaConsumerFactory<>(config);
     }
 
     @Bean

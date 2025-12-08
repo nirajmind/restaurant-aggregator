@@ -3,7 +3,6 @@ package com.niraj.restaurant.web;
 import com.niraj.restaurant.dto.RestaurantResponse;
 import com.niraj.restaurant.dto.RestaurantSearchRequest;
 import com.niraj.restaurant.service.AnalyticsProducer;
-import com.niraj.restaurant.service.AnalyticsService;
 import com.niraj.restaurant.service.RestaurantService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
